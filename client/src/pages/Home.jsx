@@ -5,6 +5,7 @@ import { OrbitControls, Environment, ContactShadows, PerspectiveCamera } from "@
 import { useNavigate } from "react-router-dom"
 import { ArrowRight, Sparkles, Zap, Target, TrendingUp } from "lucide-react"
 import { Button } from "../components/ui/button"
+import AuthScene from "../components/AuthScene"
 
 // 3D Student Character Component
 function StudentCharacter({ position = [0, 0, 0] }) {
@@ -344,7 +345,8 @@ export default function Home() {
   ]
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950">
+      <AuthScene />
       {/* Animated background gradient */}
       <div className="absolute inset-0 gradient-bg opacity-20" />
       

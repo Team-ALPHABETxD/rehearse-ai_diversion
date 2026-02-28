@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react"
-import { Video, Square, Mic, MicOff, Camera, CameraOff, Timer, CheckCircle, Send, Loader2, Bot, User, Volume2, VolumeX } from "lucide-react"
+import { useState, useRef, useEffect, useMemo } from "react"
+import { Square, Mic, MicOff, Camera, CameraOff, Timer, CheckCircle, Send, Loader2, Bot, User, Volume2, VolumeX, Download, Trash2, Film } from "lucide-react"
 import { Button } from "./ui/button"
 import { motion, AnimatePresence } from "framer-motion"
+import { deleteRecording, listRecordings, saveRecording } from "../utils/recordingsDb"
 
 const interviewQuestions = [
   "Hello! Welcome to the interview. Let's start with a classic question: Tell me about yourself and your background.",
@@ -25,15 +26,38 @@ export default function InterviewRoom() {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [isAISpeaking, setIsAISpeaking] = useState(false)
   const [audioEnabled, setAudioEnabled] = useState(true)
+  const [consentOpen, setConsentOpen] = useState(false)
+  const [consentChecked, setConsentChecked] = useState(false)
+  const [hasConsented, setHasConsented] = useState(false)
+  const [isRequestingMedia, setIsRequestingMedia] = useState(false)
+  const [mediaError, setMediaError] = useState("")
+  const [isSessionRecording, setIsSessionRecording] = useState(false)
+  const [isSavingSession, setIsSavingSession] = useState(false)
+  const [savedRecordings, setSavedRecordings] = useState([])
+  const [previewUrl, setPreviewUrl] = useState("")
+  const [previewTitle, setPreviewTitle] = useState("")
   
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const chatEndRef = useRef(null)
   const answerInputRef = useRef(null)
   const recognitionRef = useRef(null)
-  const mediaRecorderRef = useRef(null)
-  const audioChunksRef = useRef([])
+  const sessionRecorderRef = useRef(null)
+  const sessionChunksRef = useRef([])
+  const sessionStartedAtRef = useRef(null)
   const synthRef = useRef(null)
+  const interviewStartedAtRef = useRef(null)
+
+  const bestMimeType = useMemo(() => {
+    if (typeof window === "undefined" || typeof MediaRecorder === "undefined") return ""
+    const candidates = [
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm;codecs=opus",
+      "video/webm",
+    ]
+    return candidates.find((t) => MediaRecorder.isTypeSupported(t)) || ""
+  }, [])
 
   // Initialize Speech Recognition and Synthesis
   useEffect(() => {
@@ -96,9 +120,9 @@ export default function InterviewRoom() {
     }
   }, [isRecording])
 
-  // Initialize with first question
+  // Initialize with first question (only after interview starts)
   useEffect(() => {
-    if (!isInterviewStarted && interviewQuestions.length > 0) {
+    if (isInterviewStarted && conversation.length === 0 && interviewQuestions.length > 0) {
       const firstQuestion = interviewQuestions[0]
       setConversation([
         {
@@ -113,7 +137,7 @@ export default function InterviewRoom() {
         speakText(firstQuestion)
       }
     }
-  }, [isInterviewStarted, audioEnabled])
+  }, [isInterviewStarted, audioEnabled, conversation.length])
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -132,35 +156,140 @@ export default function InterviewRoom() {
     }
   }, [isRecording])
 
-  // Video stream setup
+  const applyTrackToggles = () => {
+    const stream = streamRef.current
+    if (!stream) return
+    stream.getVideoTracks().forEach((t) => (t.enabled = isVideoOn))
+    stream.getAudioTracks().forEach((t) => (t.enabled = isAudioOn))
+  }
+
+  // Apply video/audio toggles without re-requesting permissions
   useEffect(() => {
-    const startVideo = async () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop())
-      }
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: isVideoOn,
-          audio: isAudioOn,
-        })
-        streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-        }
-      } catch (error) {
-        console.error("Error accessing media devices:", error)
-      }
-    }
-
-    startVideo()
-
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop())
-      }
-    }
+    applyTrackToggles()
   }, [isVideoOn, isAudioOn])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        if (sessionRecorderRef.current && sessionRecorderRef.current.state !== "inactive") {
+          sessionRecorderRef.current.stop()
+        }
+      } catch {
+        // ignore
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop())
+      }
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const refreshSavedRecordings = async () => {
+    try {
+      const items = await listRecordings({ type: "interview" })
+      setSavedRecordings(items)
+    } catch (e) {
+      console.error("Failed to load recordings:", e)
+    }
+  }
+
+  useEffect(() => {
+    refreshSavedRecordings()
+  }, [])
+
+  const requestMedia = async () => {
+    if (streamRef.current) return true
+    setIsRequestingMedia(true)
+    setMediaError("")
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      streamRef.current = stream
+      applyTrackToggles()
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+      return true
+    } catch (e) {
+      console.error("Error accessing media devices:", e)
+      setMediaError("Camera/Microphone permission was denied or not available.")
+      return false
+    } finally {
+      setIsRequestingMedia(false)
+    }
+  }
+
+  const startSessionRecording = () => {
+    if (!streamRef.current || typeof MediaRecorder === "undefined") return false
+    try {
+      sessionChunksRef.current = []
+      const options = bestMimeType ? { mimeType: bestMimeType } : undefined
+      const recorder = new MediaRecorder(streamRef.current, options)
+      sessionRecorderRef.current = recorder
+      sessionStartedAtRef.current = Date.now()
+
+      recorder.ondataavailable = (evt) => {
+        if (evt.data && evt.data.size > 0) {
+          sessionChunksRef.current.push(evt.data)
+        }
+      }
+
+      recorder.start()
+      setIsSessionRecording(true)
+      return true
+    } catch (e) {
+      console.error("Failed to start MediaRecorder:", e)
+      setMediaError("Recording is not supported in this browser/device.")
+      return false
+    }
+  }
+
+  const stopAndSaveSessionRecording = async () => {
+    const recorder = sessionRecorderRef.current
+    if (!recorder || recorder.state === "inactive") return
+
+    setIsSavingSession(true)
+    const stoppedAt = Date.now()
+
+    const blobResult = await new Promise((resolve) => {
+      recorder.onstop = () => {
+        const mimeType = recorder.mimeType || bestMimeType || "video/webm"
+        const blob = new Blob(sessionChunksRef.current, { type: mimeType })
+        resolve({ blob, mimeType })
+      }
+      try {
+        recorder.stop()
+      } catch {
+        resolve(null)
+      }
+    })
+
+    sessionRecorderRef.current = null
+    setIsSessionRecording(false)
+
+    if (blobResult?.blob && blobResult.blob.size > 0) {
+      const durationSec =
+        sessionStartedAtRef.current ? Math.max(1, Math.round((stoppedAt - sessionStartedAtRef.current) / 1000)) : null
+      try {
+        await saveRecording({
+          blob: blobResult.blob,
+          mimeType: blobResult.mimeType,
+          createdAt: interviewStartedAtRef.current || sessionStartedAtRef.current || Date.now(),
+          durationSec,
+          type: "interview",
+        })
+        await refreshSavedRecordings()
+      } catch (e) {
+        console.error("Failed to save recording:", e)
+        setMediaError("Could not save recording locally (storage permission/space issue).")
+      }
+    }
+
+    setIsSavingSession(false)
+  }
 
   // Function to speak text using Web Speech API
   const speakText = (text) => {
@@ -197,8 +326,19 @@ export default function InterviewRoom() {
   }
 
   const handleStartInterview = () => {
-    setIsInterviewStarted(true)
-    setCurrentQuestionIndex(0)
+    if (!hasConsented) {
+      setConsentOpen(true)
+      return
+    }
+    ;(async () => {
+      const ok = await requestMedia()
+      if (!ok) return
+
+      interviewStartedAtRef.current = Date.now()
+      setIsInterviewStarted(true)
+      setCurrentQuestionIndex(0)
+      startSessionRecording()
+    })()
   }
 
   const handleSubmitAnswer = async () => {
@@ -340,9 +480,151 @@ export default function InterviewRoom() {
 
   const isInterviewComplete = currentQuestionIndex >= interviewQuestions.length - 1 && conversation.length > 0 && conversation[conversation.length - 1].type === "ai"
 
+  useEffect(() => {
+    if (isInterviewComplete && isSessionRecording) {
+      stopAndSaveSessionRecording()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInterviewComplete])
+
+  const handleConsentConfirm = async () => {
+    if (!consentChecked) return
+    setHasConsented(true)
+    setConsentOpen(false)
+    const ok = await requestMedia()
+    if (!ok) return
+    interviewStartedAtRef.current = Date.now()
+    setIsInterviewStarted(true)
+    startSessionRecording()
+  }
+
+  const openPreview = (recording) => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    const url = URL.createObjectURL(recording.blob)
+    setPreviewUrl(url)
+    setPreviewTitle(new Date(recording.createdAt).toLocaleString())
+  }
+
+  const closePreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl("")
+    setPreviewTitle("")
+  }
+
+  const handleDeleteRecording = async (id) => {
+    await deleteRecording(id)
+    await refreshSavedRecordings()
+    closePreview()
+  }
+
+  const handleEndInterviewNow = async () => {
+    if (isSessionRecording) {
+      await stopAndSaveSessionRecording()
+    }
+    setIsInterviewStarted(false)
+    setConversation([])
+    setCurrentQuestionIndex(0)
+    setIsRecording(false)
+    setIsTranscribing(false)
+    setIsProcessing(false)
+    setAnswerText("")
+    setTranscribedText("")
+  }
+
   return (
     <div className="min-h-screen p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
+        {/* Consent Modal */}
+        <AnimatePresence>
+          {consentOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.96, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.98, opacity: 0, y: 10 }}
+                className="w-full max-w-lg glass-strong rounded-3xl border border-white/10 p-6 sm:p-7"
+              >
+                <h3 className="text-xl font-semibold text-white">Permission required</h3>
+                <p className="mt-2 text-sm text-white/70">
+                  Before starting, please confirm you allow this app to access your camera and microphone and
+                  record your interview. The recording is saved only in your browser on this device.
+                </p>
+
+                <div className="mt-4 glass rounded-2xl p-4 border border-white/10">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 rounded border-white/30 bg-transparent text-purple-400 focus:ring-purple-400/70"
+                      checked={consentChecked}
+                      onChange={(e) => setConsentChecked(e.target.checked)}
+                    />
+                    <span className="text-sm text-white/80">
+                      I consent to camera/microphone access and local recording for this practice interview.
+                    </span>
+                  </label>
+                </div>
+
+                {mediaError && <p className="mt-3 text-sm text-red-300">{mediaError}</p>}
+
+                <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => setConsentOpen(false)}
+                    className="border-white/15"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={handleConsentConfirm}
+                    disabled={!consentChecked || isRequestingMedia}
+                    className="flex items-center gap-2"
+                  >
+                    {isRequestingMedia ? <Loader2 size={18} className="animate-spin" /> : null}
+                    Allow & Start
+                  </Button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Recording Preview Modal */}
+        <AnimatePresence>
+          {previewUrl && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              onClick={closePreview}
+            >
+              <motion.div
+                initial={{ scale: 0.96, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.98, opacity: 0, y: 10 }}
+                className="w-full max-w-3xl glass-strong rounded-3xl border border-white/10 p-4 sm:p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-white font-semibold">Recording - {previewTitle}</h3>
+                  <Button variant="outline" className="border-white/15" onClick={closePreview}>
+                    Close
+                  </Button>
+                </div>
+                <div className="mt-4 rounded-2xl overflow-hidden border border-white/10">
+                  <video src={previewUrl} controls className="w-full h-auto bg-black" />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -375,7 +657,16 @@ export default function InterviewRoom() {
               transition={{ duration: 0.5 }}
               className="relative glass-strong rounded-2xl overflow-hidden aspect-video"
             >
-              {isVideoOn ? (
+              {!hasConsented ? (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900/20 to-blue-900/20">
+                  <div className="text-center px-6">
+                    <p className="text-white font-semibold">Camera & microphone are off</p>
+                    <p className="text-white/60 text-sm mt-2">
+                      Click <span className="text-white/80 font-medium">Start Interview</span> and give consent to enable them.
+                    </p>
+                  </div>
+                </div>
+              ) : isVideoOn ? (
                 <video
                   ref={videoRef}
                   autoPlay
@@ -390,16 +681,22 @@ export default function InterviewRoom() {
 
               {/* Recording Indicator */}
               <AnimatePresence>
-                {isRecording && (
+                {(isRecording || isSessionRecording) && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="absolute top-4 left-4 flex items-center gap-2 glass px-4 py-2 rounded-full"
                   >
-                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                    <div className={`w-3 h-3 rounded-full animate-pulse ${isSavingSession ? "bg-yellow-400" : "bg-red-500"}`} />
                     <span className="text-white text-sm font-medium">
-                      {isTranscribing ? "Recording & Transcribing..." : "Recording"}
+                      {isSavingSession
+                        ? "Saving recording..."
+                        : isRecording && isTranscribing
+                          ? "Transcribing..."
+                          : isSessionRecording
+                            ? "Interview Recording"
+                            : "Recording"}
                     </span>
                   </motion.div>
                 )}
@@ -599,6 +896,7 @@ export default function InterviewRoom() {
                   variant={isVideoOn ? "default" : "outline"}
                   onClick={() => setIsVideoOn(!isVideoOn)}
                   className="flex items-center gap-2"
+                  disabled={!hasConsented}
                 >
                   {isVideoOn ? <Camera size={20} /> : <CameraOff size={20} />}
                   {isVideoOn ? "Video On" : "Video Off"}
@@ -608,16 +906,92 @@ export default function InterviewRoom() {
                   variant={isAudioOn ? "default" : "outline"}
                   onClick={() => setIsAudioOn(!isAudioOn)}
                   className="flex items-center gap-2"
+                  disabled={!hasConsented}
                 >
                   {isAudioOn ? <Mic size={20} /> : <MicOff size={20} />}
                   {isAudioOn ? "Audio On" : "Audio Off"}
                 </Button>
+
+                {isInterviewStarted && (
+                  <Button
+                    variant="outline"
+                    onClick={handleEndInterviewNow}
+                    className="flex items-center gap-2 border-red-500 text-red-300 hover:bg-red-500/10"
+                    disabled={isSavingSession}
+                  >
+                    <Square size={18} />
+                    End & Save
+                  </Button>
+                )}
               </div>
             </motion.div>
           </div>
 
           {/* Side Panel */}
           <div className="space-y-6">
+            {/* Saved recordings */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.25 }}
+              className="glass-strong rounded-2xl p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Film size={18} className="text-white/80" />
+                  Saved Recordings
+                </h3>
+                <Button variant="outline" className="border-white/15" onClick={refreshSavedRecordings}>
+                  Refresh
+                </Button>
+              </div>
+
+              {savedRecordings.length === 0 ? (
+                <p className="text-sm text-white/60">No saved recordings yet.</p>
+              ) : (
+                <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                  {savedRecordings.map((r) => {
+                    const created = new Date(r.createdAt || Date.now()).toLocaleString()
+                    const sizeMb = r.sizeBytes ? (r.sizeBytes / (1024 * 1024)).toFixed(1) : null
+                    return (
+                      <div key={r.id} className="glass rounded-2xl p-4 border border-white/10">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm text-white font-medium">{created}</p>
+                            <p className="text-xs text-white/60 mt-1">
+                              {r.durationSec ? `${r.durationSec}s` : "—"} · {sizeMb ? `${sizeMb} MB` : "—"}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" className="border-white/15" onClick={() => openPreview(r)}>
+                              Play
+                            </Button>
+                            <a
+                              href={URL.createObjectURL(r.blob)}
+                              download={`interview-${r.id}.webm`}
+                              className="inline-flex"
+                            >
+                              <Button variant="outline" className="border-white/15" title="Download">
+                                <Download size={16} />
+                              </Button>
+                            </a>
+                            <Button
+                              variant="outline"
+                              className="border-red-500/50 text-red-300 hover:bg-red-500/10"
+                              title="Delete"
+                              onClick={() => handleDeleteRecording(r.id)}
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </motion.div>
+
             {/* Progress */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
