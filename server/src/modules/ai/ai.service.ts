@@ -82,6 +82,14 @@ export class AiService {
         }
     }
 
+
+    async analyseVdo (path: string) {
+        try {
+            const prompt = this.aiPrompts.getVdoPrompt()
+            return await this.innerServices.analyseVideo(prompt, path)
+        } catch (error) {
+            
+        }
+    }
+
 }
-
-

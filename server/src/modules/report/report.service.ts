@@ -25,8 +25,13 @@ export class ReportService {
             await createdReport.save()
 
             const reportId = createdReport.id
+            // enqueue for analysis
             const res = await this.kafkaService.send('waited-reports', { reportId: reportId })
             console.log("Status of insertion in waiting room:" , res)
+
+            // run analysis right away so metrics populate
+            this.analyseReport(reportId).catch(e => console.log('auto analysis error', e))
+
             return { flag: "success", data: createdReport }
         } catch (error) {
             console.log(error)
@@ -57,7 +62,7 @@ export class ReportService {
     async analyseRcrd(rcrdUrl: string) {
         if (!rcrdUrl) return null
 
-        // rcrd analysis data fetch from python db
+        const aiAnalysed = await this.aiService
         const analysedData = {
             facevisible: 41,
             eyecontact: 24,

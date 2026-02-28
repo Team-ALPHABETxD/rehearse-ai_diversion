@@ -259,9 +259,9 @@ export class AiPrompots {
 
         USER STATUS:
         ${isNewUser
-                        ? "This candidate has NOT participated in any mock interview yet."
-                        : "This candidate has completed mock interviews and performance metrics are available."
-                    }
+                ? "This candidate has NOT participated in any mock interview yet."
+                : "This candidate has completed mock interviews and performance metrics are available."
+            }
 
         INTERVIEW PERFORMANCE METRICS:
         - Technical Score: ${interviewScores?.technicalScore ?? "Not available"}/100
@@ -391,5 +391,54 @@ export class AiPrompots {
     `;
 
         return prompt;
+    }
+
+
+    getVdoPrompt() {
+        const prompt = `
+            You are an AI interview video analyst.
+
+            Analyze the provided interview video and evaluate the candidate's visual communication behaviour.
+
+            Carefully observe the FULL video and calculate the following metrics as percentages (0–100).
+
+            Definitions:
+
+            1. facevisible:
+            Percentage of total video duration where the candidate's face is clearly visible in the frame.
+
+            2. eyecontact:
+            Percentage of time the candidate appears to maintain eye contact with the camera (looking toward camera, not sideways or downward).
+
+            3. blankvisual:
+            Percentage of time where the candidate shows disengaged visuals such as:
+            - looking away frequently
+            - distracted behaviour
+            - frozen or expressionless face
+            - absence from frame
+
+            4. softsmile:
+            Percentage of time the candidate maintains a natural, confident, soft smile (not forced laughter).
+
+            IMPORTANT RULES:
+            - Scores must be integers between 0 and 100.
+            - Base evaluation on total visible duration.
+            - Do NOT guess beyond observable behaviour.
+            - Return ONLY valid JSON.
+            - Do NOT include explanations.
+            - Do NOT include markdown.
+            - Do NOT include extra text.
+
+            Output format strictly:
+
+            {
+            "facevisible": number,
+            "eyecontact": number,
+            "blankvisual": number,
+            "softsmile": number
+            }
+            `;
+
+        return prompt
     }
 } 

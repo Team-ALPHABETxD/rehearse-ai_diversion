@@ -109,7 +109,5 @@ export class AiController {
         const res = await this.aiService.generatePersonalizedSchedule(interviewScores, onboardingData)
         console.log(res)
         return { flag: "success", data: res }
-    }
-
-    
+    } 
 }

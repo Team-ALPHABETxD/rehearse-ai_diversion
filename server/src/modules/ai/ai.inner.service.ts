@@ -2,10 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AiPrompots } from './ai.prompts';
 import * as fs from 'fs';
 import pdfParse from 'pdf-parse';
+import { OpenRouter } from '@openrouter/sdk';
 
 @Injectable()
 export class InnerAiService {
-    constructor(@Inject() private readonly aiPrompts: AiPrompots) {}
+    constructor(@Inject() private readonly aiPrompts: AiPrompots) { }
     aiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${process.env.GEMINI_API_KEY}`
 
     async generateResponse(prompt: any) {
@@ -32,10 +33,16 @@ export class InnerAiService {
             console.log(data)
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text
             const cleanedText = text
-            .replace(/```json/g, "")
-            .replace(/```/g, "")
-            .trim()
-            return JSON.parse(cleanedText)
+                .replace(/```json/g, "")
+                .replace(/```/g, "")
+                .trim()
+            try {
+                return JSON.parse(cleanedText)
+            } catch (parseErr) {
+                console.error('JSON parse failed for AI response:', parseErr)
+                console.error('Cleaned response text:', cleanedText)
+                return null
+            }
         } catch (error) {
             console.log(error)
             return null
@@ -44,32 +51,66 @@ export class InnerAiService {
 
 
     async extractResumeData(filePath: string) {
-    try {
-      let buffer: Buffer;
+        try {
+            let buffer: Buffer;
 
-      // Check if it's a cloud/remote URL (http/https)
-      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-        // Fetch PDF from cloud URL
-        const response = await fetch(filePath);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch PDF from URL: ${response.statusText}`);
+            // Check if it's a cloud/remote URL (http/https)
+            if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+                // Fetch PDF from cloud URL
+                const response = await fetch(filePath);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch PDF from URL: ${response.statusText}`);
+                }
+                buffer = Buffer.from(await response.arrayBuffer());
+            } else {
+                // Assume it's a local file path
+                buffer = fs.readFileSync(filePath);
+            }
+
+            const data = await pdfParse(buffer);
+            const extractedText = data.text;
+            console.log('Extracted text:', extractedText.substring(0, 100) + '...');
+
+            return extractedText
+                .replace(/\s+/g, ' ')
+                .trim();
+
+        } catch (error) {
+            console.error('Resume parsing failed:', error);
         }
-        buffer = Buffer.from(await response.arrayBuffer());
-      } else {
-        // Assume it's a local file path
-        buffer = fs.readFileSync(filePath);
-      }
-
-      const data = await pdfParse(buffer);
-      const extractedText = data.text;
-      console.log('Extracted text:', extractedText.substring(0, 100) + '...');
-
-      return extractedText
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    } catch (error) {
-      console.error('Resume parsing failed:', error);
     }
-  }
+
+
+    openRouter = new OpenRouter({
+        apiKey: process.env.OPENROUTER_API_KEY,
+    });
+    async analyseVideo(prompt:string, filePath: string) {
+        const result = await this.openRouter.chat.send({
+            chatGenerationParams: {
+                model: "google/gemini-2.5-flash",
+                stream: false,
+
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "text",
+                                text: prompt,
+                            },
+                            {
+                                type: "video_url",
+                                videoUrl: {
+                                    url: filePath,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+
+        console.log(result);
+        return result;
+    }
 }
