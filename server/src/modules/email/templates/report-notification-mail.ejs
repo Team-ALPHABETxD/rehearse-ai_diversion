@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Interview Report Updated</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 30px auto;
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #333;
+    }
+    .content {
+      font-size: 14px;
+      color: #555;
+      line-height: 1.6;
+    }
+    .metadata {
+      background: #f9fafb;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    .metadata p {
+      margin: 6px 0;
+    }
+    .cta {
+      text-align: center;
+      margin-top: 25px;
+    }
+    .button {
+      display: inline-block;
+      padding: 10px 18px;
+      background-color: #4f46e5;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="title">Your Interview Report Has Been Updated 🎉</div>
+    </div>
+
+    <div class="content">
+      <p>Hello,</p>
+
+      <p>
+        The report for your recently mocked interview on <strong>Reharse AI</strong> has been successfully updated.
+        We encourage you to review the latest feedback and insights to improve your performance.
+      </p>
+
+      <div class="metadata">
+        <p><strong>Interview Title:</strong> <%= title %></p>
+        <p><strong>Target Company:</strong> <%= targetCmp %></p>
+        <p><strong>Interview Date:</strong> <%= timestamp %></p>
+      </div>
+
+      <p>
+        Check out your updated report to analyze strengths, identify improvement areas,
+        and take the next step toward cracking your dream job.
+      </p>
+
+      <div class="cta">
+        <a href="<%= reportLink %>" class="button">View Report</a>
+      </div>
+
+      <p>
+        Keep practicing. Keep improving.
+      </p>
+
+      <p>
+        — Team Reharse AI
+      </p>
+    </div>
+
+    <div class="footer">
+      © <%= new Date().getFullYear() %> Reharse AI. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>

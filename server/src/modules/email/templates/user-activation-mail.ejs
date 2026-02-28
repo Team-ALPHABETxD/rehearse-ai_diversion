@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Activate Your Skill Scaler Account</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f6f8;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(90deg, #4f46e5, #7c3aed);
+      color: #ffffff;
+      padding: 24px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 1px;
+    }
+    .content {
+      padding: 32px 24px;
+      color: #333333;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+    .otp-box {
+      margin: 24px 0;
+      text-align: center;
+    }
+    .otp-code {
+      display: inline-block;
+      background: #f3f4f6;
+      padding: 14px 24px;
+      font-size: 26px;
+      font-weight: bold;
+      letter-spacing: 6px;
+      border-radius: 6px;
+      color: #111827;
+    }
+    .footer {
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: #6b7280;
+      background: #f9fafb;
+    }
+    .warning {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #9ca3af;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Welcome to Skill Scaler 🚀</h1>
+    </div>
+
+    <div class="content">
+      <p>Hi <strong><%= userName %></strong>,</p>
+
+      <p>
+        You're just one step away from activating your Skill Scaler account.
+        Use the verification code below to complete your registration.
+      </p>
+
+      <div class="otp-box">
+        <div class="otp-code"><%= otp %></div>
+      </div>
+
+      <p>
+        This code will expire in <strong>10 minutes</strong>. Please do not share
+        this code with anyone for security reasons.
+      </p>
+
+      <p>
+        If you didn’t request this, you can safely ignore this email.
+      </p>
+
+      <p>Let’s start scaling your skills! 💪</p>
+
+      <p>
+        — The Skill Scaler Team
+      </p>
+    </div>
+
+    <div class="footer">
+      © <%= new Date().getFullYear() %> Skill Scaler. All rights reserved.
+      <div class="warning">
+        This is an automated message. Please do not reply.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
