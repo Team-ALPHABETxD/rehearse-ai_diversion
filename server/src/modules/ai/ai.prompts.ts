@@ -131,5 +131,95 @@ export class AiPrompots {
         return prompt;
     }
 
-    
+    getQuestionsPrompt(jobTitle: string, exp: string, skills: string[], projects: string[]) {
+        const prompt = `
+            You are an expert technical interviewer.
+
+            Your task is to generate exactly 5 high-quality interview questions based on the candidate profile provided below.
+
+            Candidate Profile:
+            - Job Title: ${jobTitle}
+            - Years of Experience: ${exp}
+            - Skills: ${skills}
+            - Projects: ${projects}
+
+            Instructions:
+            1. Generate questions relevant to the job role and experience level.
+            2. Questions should evaluate practical understanding, real-world problem solving, and conceptual clarity.
+            3. Prefer scenario-based or applied questions over theoretical ones.
+            4. Avoid generic or overly simple questions.
+            5. Questions must reflect the candidate’s listed skills and projects.
+            6. Generate EXACTLY 5 questions.
+
+            Output Rules:
+            - Return ONLY valid JSON.
+            - Do NOT include explanations, numbering, markdown, or extra text.
+            - The JSON must contain only one key: "questions".
+            - The value must be an array of strings.
+
+            Output Format:
+
+            {
+            "questions": [
+                "Question 1",
+                "Question 2",
+                "Question 3",
+                "Question 4",
+                "Question 5"
+            ]
+            }
+        `
+
+        return prompt
+    }
+
+    getResumePrompt(resume: string) {
+        const prompt = `
+            You are an intelligent resume parsing system.
+
+            Your task is to extract ONLY the candidate's SKILLS and PROJECTS from the provided resume text.
+
+            Resume Text:
+            """
+            ${resume}
+            """
+
+            Instructions:
+
+            1. Extract skills mentioned explicitly in the resume.
+            2. Separate skills into:
+            - technicalSkills
+            - softSkills
+            - toolsAndTechnologies
+            3. Normalize skills:
+            - Remove duplicates
+            - Fix casing (e.g., react → React)
+            - Ignore languages spoken (English, Hindi, etc.)
+            4. Extract all projects mentioned.
+            5. Each project must contain:
+            - projectTitle
+            - technologiesUsed (if mentioned, otherwise empty array)
+            6. Do NOT invent skills or projects.
+            7. Ignore education, certifications, achievements, or extracurricular activities unless they directly describe a project.
+            8. Return ONLY valid JSON.
+            9. If something is missing, return an empty array instead of null.
+            10. If not an resume content return { validation: "fail" }
+
+            Output Format:
+
+            {
+            "technicalSkills": [],
+            "softSkills": [],
+            "toolsAndTechnologies": [],
+            "projects": [
+                {
+                "projectTitle": "",
+                "technologiesUsed": []
+                }
+            ]
+            }
+        `
+
+        return prompt
+    }
 }
