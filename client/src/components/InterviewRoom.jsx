@@ -21,33 +21,23 @@ export default function InterviewRoom() {
     resumeFile: null,
     resumeText: "",
     skills: "",
-    projects: "",
-    resumeAnalyzed: false
+    projects: ""
   });
   const [formStep, setFormStep] = useState(0); // 0=form, 1=interview
 
     // Handle form input changes
-
     const handleFormChange = (e) => {
       const { name, value } = e.target;
       setForm((prev) => ({ ...prev, [name]: value }));
     };
 
     // Handle resume upload and extract (placeholder for now)
-
-    // Called on file select or analyze
     const handleResumeUpload = (file, text) => {
-      if (file && text) {
-        // Simulate extraction (user will connect endpoint)
-        // Example: setForm((prev) => ({ ...prev, skills: "React, Node.js", projects: "Portfolio Website", resumeAnalyzed: true }));
-        setForm((prev) => ({ ...prev, resumeFile: file, resumeText: text, resumeAnalyzed: true }));
-      } else if (file) {
-        setForm((prev) => ({ ...prev, resumeFile: file, resumeAnalyzed: false }));
-      }
+      setForm((prev) => ({ ...prev, resumeFile: file, resumeText: text }));
+      // Optionally, extract skills/projects from text here
     };
 
     // Continue to interview room
-
     const handleFormSubmit = (e) => {
       e.preventDefault();
       setFormStep(1);
@@ -571,8 +561,10 @@ export default function InterviewRoom() {
   }
 
   // Show pre-interview form before interview room
+  // Disable continue if any required field is empty or resume not uploaded
+  const isFormComplete = form.jobTitle.trim() && form.experience.trim() && form.resumeFile;
+
   if (formStep === 0) {
-    const isFormComplete = form.jobTitle.trim() && form.experience.trim() && form.resumeFile && form.resumeAnalyzed;
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900/60 to-blue-900/60 p-6">
         <form onSubmit={handleFormSubmit} className="glass-strong rounded-3xl border border-white/10 p-8 w-full max-w-xl space-y-6">
@@ -603,15 +595,49 @@ export default function InterviewRoom() {
             />
           </div>
           <div>
-            <ResumeUpload onUpload={handleResumeUpload} />
+            <ResumeUpload
+              onUpload={handleResumeUpload}
+              skills={form.skills}
+              projects={form.projects}
+              setForm={setForm}
+            />
             {form.resumeFile && (
               <div className="mt-2 text-white/80 text-sm">Uploaded: {form.resumeFile.name}</div>
             )}
-            {form.resumeAnalyzed && (
-              <div className="mt-2 text-green-400 text-sm">Resume analyzed and data fetched!</div>
-            )}
           </div>
-          <Button type="submit" variant="default" className="w-full mt-4" disabled={!isFormComplete}>Continue to Interview</Button>
+          {/* Show fetched skills/projects fields as read-only */}
+          {form.skills && (
+            <div>
+              <label className="block text-white font-medium mb-1">Skills (fetched)</label>
+              <input
+                type="text"
+                name="skills"
+                value={form.skills}
+                readOnly
+                className="w-full rounded-lg p-3 bg-transparent border border-white/20 text-white opacity-80"
+              />
+            </div>
+          )}
+          {form.projects && (
+            <div>
+              <label className="block text-white font-medium mb-1">Projects (fetched)</label>
+              <input
+                type="text"
+                name="projects"
+                value={form.projects}
+                readOnly
+                className="w-full rounded-lg p-3 bg-transparent border border-white/20 text-white opacity-80"
+              />
+            </div>
+          )}
+          <Button
+            type="submit"
+            variant="default"
+            className="w-full mt-4"
+            disabled={!(isFormComplete && form.skills && form.projects)}
+          >
+            Continue to Interview
+          </Button>
         </form>
       </div>
     );

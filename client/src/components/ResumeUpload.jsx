@@ -1,30 +1,36 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "./ui/button";
 
-export default function ResumeUpload({ onUpload, onExtract }) {
+export default function ResumeUpload({ onUpload, onExtract, skills, projects, setForm }) {
   const fileInputRef = useRef();
+  const [localFile, setLocalFile] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
-
-  // Only trigger file input, do not auto-analyze
-  const handleFileInput = (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Store file in parent, but do not analyze yet
-      onUpload(file, null);
-    }
-  };
-
-  // Analyze button click
-  const handleAnalyze = () => {
-    const file = fileInputRef.current.files[0];
-    if (file) {
+      setLocalFile(file);
       const reader = new FileReader();
       reader.onload = (event) => {
-        // Pass file and text content up for analysis
         onUpload(file, event.target.result);
       };
       reader.readAsText(file);
     }
+  };
+
+  // Simulate analyze/fetch skills & projects from backend
+  const handleAnalyze = async (e) => {
+    e.preventDefault();
+    if (!localFile) return;
+    setAnalyzing(true);
+    // TODO: Replace with real backend call
+    setTimeout(() => {
+      // Simulated response
+      const fetchedSkills = "React, Node.js, SQL";
+      const fetchedProjects = "Portfolio Website, Chatbot";
+      setForm((prev) => ({ ...prev, skills: fetchedSkills, projects: fetchedProjects }));
+      setAnalyzing(false);
+    }, 1200);
   };
 
   return (
@@ -35,16 +41,22 @@ export default function ResumeUpload({ onUpload, onExtract }) {
         type="file"
         accept=".pdf,.txt"
         className="block w-full text-white bg-transparent border border-white/20 rounded-lg p-2"
-        onChange={handleFileInput}
+        onChange={handleFileChange}
       />
       <Button
         variant="default"
         onClick={handleAnalyze}
-        className="mt-2 hover:bg-gradient-to-r hover:from-purple-500 hover:to-pink-500"
-        type="button"
+        className="mt-2"
+        disabled={!localFile || analyzing}
       >
-        Analyze
+        {analyzing ? "Analyzing..." : "Analyze"}
       </Button>
+      {skills && (
+        <div className="mt-2 text-white/80 text-sm">Skills: {skills}</div>
+      )}
+      {projects && (
+        <div className="mt-1 text-white/80 text-sm">Projects: {projects}</div>
+      )}
     </div>
   );
 }
