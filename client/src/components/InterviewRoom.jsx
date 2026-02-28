@@ -310,6 +310,29 @@ export default function InterviewRoom() {
           durationSec,
           type: "interview",
         })
+        // Send to backend
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `interview-${timestamp}.webm`;
+        const formData = new FormData();
+        formData.append('file', blobResult.blob, filename);
+        
+        const backendUrl = `${window.location.protocol}//${window.location.hostname}:3000/upload/upload`;
+        try {
+          const uploadRes = await fetch(backendUrl, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!uploadRes.ok) {
+            throw new Error(`Upload failed: ${uploadRes.statusText}`);
+          }
+          
+          const uploadData = await uploadRes.json();
+          console.log('Recording uploaded successfully:', uploadData.data);
+        } catch (uploadErr) {
+          console.error('Upload error:', uploadErr);
+          setMediaError(`Could not upload recording to server: ${uploadErr.message}`);
+        }
         await refreshSavedRecordings()
       } catch (e) {
         console.error("Failed to save recording:", e)
