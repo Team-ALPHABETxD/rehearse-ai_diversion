@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react"
+import ResumeUpload from "./ResumeUpload"
 import { Square, Mic, MicOff, Camera, CameraOff, Timer, CheckCircle, Send, Loader2, Bot, User, Volume2, VolumeX, Download, Trash2, Film } from "lucide-react"
 import { Button } from "./ui/button"
 import { motion, AnimatePresence } from "framer-motion"
@@ -13,6 +14,44 @@ const interviewQuestions = [
 ]
 
 export default function InterviewRoom() {
+  // Pre-interview form state
+  const [form, setForm] = useState({
+    jobTitle: "",
+    experience: "",
+    resumeFile: null,
+    resumeText: "",
+    skills: "",
+    projects: "",
+    resumeAnalyzed: false
+  });
+  const [formStep, setFormStep] = useState(0); // 0=form, 1=interview
+
+    // Handle form input changes
+
+    const handleFormChange = (e) => {
+      const { name, value } = e.target;
+      setForm((prev) => ({ ...prev, [name]: value }));
+    };
+
+    // Handle resume upload and extract (placeholder for now)
+
+    // Called on file select or analyze
+    const handleResumeUpload = (file, text) => {
+      if (file && text) {
+        // Simulate extraction (user will connect endpoint)
+        // Example: setForm((prev) => ({ ...prev, skills: "React, Node.js", projects: "Portfolio Website", resumeAnalyzed: true }));
+        setForm((prev) => ({ ...prev, resumeFile: file, resumeText: text, resumeAnalyzed: true }));
+      } else if (file) {
+        setForm((prev) => ({ ...prev, resumeFile: file, resumeAnalyzed: false }));
+      }
+    };
+
+    // Continue to interview room
+
+    const handleFormSubmit = (e) => {
+      e.preventDefault();
+      setFormStep(1);
+    };
   const [isRecording, setIsRecording] = useState(false)
   const [isVideoOn, setIsVideoOn] = useState(true)
   const [isAudioOn, setIsAudioOn] = useState(true)
@@ -531,6 +570,54 @@ export default function InterviewRoom() {
     setTranscribedText("")
   }
 
+  // Show pre-interview form before interview room
+  if (formStep === 0) {
+    const isFormComplete = form.jobTitle.trim() && form.experience.trim() && form.resumeFile && form.resumeAnalyzed;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900/60 to-blue-900/60 p-6">
+        <form onSubmit={handleFormSubmit} className="glass-strong rounded-3xl border border-white/10 p-8 w-full max-w-xl space-y-6">
+          <h2 className="text-3xl font-bold text-white mb-2">Interview Setup</h2>
+          <div>
+            <label className="block text-white font-medium mb-1">Job Title</label>
+            <input
+              type="text"
+              name="jobTitle"
+              value={form.jobTitle}
+              onChange={handleFormChange}
+              required
+              className="w-full rounded-lg p-3 bg-transparent border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="e.g. Frontend Developer"
+            />
+          </div>
+          <div>
+            <label className="block text-white font-medium mb-1">Experience (years)</label>
+            <input
+              type="number"
+              name="experience"
+              value={form.experience}
+              onChange={handleFormChange}
+              min="0"
+              required
+              className="w-full rounded-lg p-3 bg-transparent border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="e.g. 3"
+            />
+          </div>
+          <div>
+            <ResumeUpload onUpload={handleResumeUpload} />
+            {form.resumeFile && (
+              <div className="mt-2 text-white/80 text-sm">Uploaded: {form.resumeFile.name}</div>
+            )}
+            {form.resumeAnalyzed && (
+              <div className="mt-2 text-green-400 text-sm">Resume analyzed and data fetched!</div>
+            )}
+          </div>
+          <Button type="submit" variant="default" className="w-full mt-4" disabled={!isFormComplete}>Continue to Interview</Button>
+        </form>
+      </div>
+    );
+  }
+
+  // ...existing code...
   return (
     <div className="min-h-screen p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
