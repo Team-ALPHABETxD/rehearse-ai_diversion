@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AiPrompots } from './ai.prompts';
+import * as fs from 'fs';
+import pdfParse from 'pdf-parse';
 
 @Injectable()
 export class InnerAiService {
@@ -39,4 +41,35 @@ export class InnerAiService {
             return null
         }
     }
+
+
+    async extractResumeData(filePath: string) {
+    try {
+      let buffer: Buffer;
+
+      // Check if it's a cloud/remote URL (http/https)
+      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        // Fetch PDF from cloud URL
+        const response = await fetch(filePath);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF from URL: ${response.statusText}`);
+        }
+        buffer = Buffer.from(await response.arrayBuffer());
+      } else {
+        // Assume it's a local file path
+        buffer = fs.readFileSync(filePath);
+      }
+
+      const data = await pdfParse(buffer);
+      const extractedText = data.text;
+      console.log('Extracted text:', extractedText.substring(0, 100) + '...');
+
+      return extractedText
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    } catch (error) {
+      console.error('Resume parsing failed:', error);
+    }
+  }
 }
