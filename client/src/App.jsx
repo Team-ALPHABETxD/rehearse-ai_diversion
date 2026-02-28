@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from "react-router-dom"
 import Sidebar from "./components/Sidebar"
-import ThreeBackground from "./components/ThreeBackground"
+import AuthScene from "./components/AuthScene"
 import Home from "./pages/Home"
 import Dashboard from "./pages/Dashboard"
 import ResumeChecker from "./pages/ResumeChecker"
@@ -19,8 +19,8 @@ function AppContent() {
   const isAuthPage = location.pathname === "/login" || location.pathname === "/signup"
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
-      {!isHomePage && !isAuthPage && <ThreeBackground />}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950 relative overflow-hidden">
+      {!isHomePage && !isAuthPage && <AuthScene />}
       <div className="relative z-10 flex">
         {!isHomePage && !isAuthPage && (
           <Sidebar currentPath={location.pathname} onNavigate={(path) => navigate(path)} />
