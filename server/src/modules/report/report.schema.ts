@@ -31,6 +31,9 @@ export class Report extends ReportDetailsDTO {
   @Prop()
   videoMetrics: VideoMetrics
 
+  @Prop({ type: Object })
+  rawVideoMetrics?: Record<string, number>;
+
   @Prop()
   answersMetrics: AnswerMetrics[]
 
@@ -48,6 +51,19 @@ export class Report extends ReportDetailsDTO {
 
   @Prop()
   improvementSugg: string
+
+  // Personalized Schedule Data
+  @Prop({ type: Object })
+  personalizedSchedule?: {
+    analysis?: any;
+    taskSchedule?: any;
+    interventions?: any;
+    weeklyMilestones?: any;
+    mockInterviewDates?: any;
+  };
+
+  @Prop({ default: false })
+  scheduleGenerated?: boolean;
 }
 
 export const ReportSchema = SchemaFactory.createForClass(Report);

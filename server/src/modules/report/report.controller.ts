@@ -42,4 +42,93 @@ export class ReportController {
 
         return await this.reportService.createReport(reportData, userId)
     }
+
+    @UseGuards(AuthGuard)
+    @Post('analyze')
+    @ApiBearerAuth()
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                reportId: { type: 'string' }
+            }
+        }
+    })
+    @ApiOperation({ description: "Analyze a report (QnA + video) and save metrics" })
+    async analyzeReport(
+        @Body() data: any,
+        @Req() request: any
+    ) {
+        const userId = await request['user']['userId']
+        if(!userId) 
+            return new NotFoundException("User Not Found!")
+
+        return await this.reportService.analyseReport(data.reportId)
+    }
+
+    @UseGuards(AuthGuard)
+    @Post('own')
+    @ApiBearerAuth()
+    @ApiOperation({ description: "Give all reports of an user" })
+    async getReports(
+        @Req() request: any
+    ) {
+        const userId = await request['user']['userId']
+        console.log(userId)
+        if(!userId) 
+            return new NotFoundException("User Not Found!")
+
+        return await this.reportService.giveReports(userId)
+    }
+
+    @UseGuards(AuthGuard)
+    @Post('generate-schedule')
+    @ApiBearerAuth()
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                reportId: { type: 'string' }
+            }
+        }
+    })
+    @ApiOperation({ description: "Generate personalized interview prep schedule for a report" })
+    async generateSchedule(
+        @Body() data: any,
+        @Req() request: any
+    ) {
+        const userId = await request['user']['userId']
+        if(!userId) 
+            return new NotFoundException("User Not Found!")
+
+        return await this.reportService.generatePersonalizedScheduleForReport(data.reportId, userId)
+    }
+
+    @UseGuards(AuthGuard)
+    @Get('schedule/:reportId')
+    @ApiBearerAuth()
+    @ApiOperation({ description: "Get personalized schedule for a report" })
+    async getSchedule(
+        @Req() request: any
+    ) {
+        const reportId = request.params.reportId
+        if(!reportId)
+            return new NotFoundException("Report ID not provided!")
+
+        return await this.reportService.getPersonalizedSchedule(reportId)
+    }
+
+    @UseGuards(AuthGuard)
+    @Get('my-schedule')
+    @ApiBearerAuth()
+    @ApiOperation({ description: "Get user's current personalized schedule" })
+    async getMySchedule(
+        @Req() request: any
+    ) {
+        const userId = await request['user']['userId']
+        if(!userId)
+            return new NotFoundException("User Not Found!")
+
+        return await this.reportService.getUserPersonalizedSchedule(userId)
+    }
 }

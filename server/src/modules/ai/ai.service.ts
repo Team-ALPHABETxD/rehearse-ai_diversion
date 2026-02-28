@@ -55,4 +55,33 @@ export class AiService {
         }
     }
 
+    async generatePersonalizedSchedule(
+        interviewScores: {
+            accuracy?: number;
+            fillerScore?: number;
+            behavioralScore?: number;
+            technicalScore?: number;
+            confidenceLevel?: number;
+        },
+        onboardingData: {
+            targetCompany: string;
+            targetRole: string;
+            daysLeft: number;
+            skillsHave: string[];
+            skillsNeeded?: string[];
+            careerGap?: string;
+        }
+    ) {
+        try {
+            const prompt = this.aiPrompts.getPersonalizedSchedulePrompt(interviewScores, onboardingData)
+            console.log('Generating personalized schedule...')
+            return await this.innerServices.generateResponse(prompt)
+        } catch (error) {
+            console.log(error)
+            return null
+        }
+    }
+
 }
+
+

@@ -73,4 +73,43 @@ export class AiController {
         console.log(res)
         return { flag: "succes", data: res }
     }
+
+    @Post('/personalized-schedule')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                interviewScores: {
+                    type: 'object',
+                    properties: {
+                        accuracy: { type: 'number' },
+                        fillerScore: { type: 'number' },
+                        behavioralScore: { type: 'number' },
+                        technicalScore: { type: 'number' },
+                        confidenceLevel: { type: 'number' }
+                    }
+                },
+                onboardingData: {
+                    type: 'object',
+                    properties: {
+                        targetCompany: { type: 'string' },
+                        targetRole: { type: 'string' },
+                        daysLeft: { type: 'number' },
+                        skillsHave: { type: 'array', items: { type: 'string' } },
+                        skillsNeeded: { type: 'array', items: { type: 'string' } },
+                        careerGap: { type: 'string' }
+                    }
+                }
+            },
+        },
+    })
+    @ApiOperation({ description: "Generate personalized interview prep schedule with tasks and interventions" })
+    async generateSchedule (@Body() data: any) {
+        const { interviewScores, onboardingData } = data
+        const res = await this.aiService.generatePersonalizedSchedule(interviewScores, onboardingData)
+        console.log(res)
+        return { flag: "success", data: res }
+    }
+
+    
 }

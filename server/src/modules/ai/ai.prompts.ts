@@ -222,4 +222,174 @@ export class AiPrompots {
 
         return prompt
     }
-}
+
+
+    getPersonalizedSchedulePrompt(
+        interviewScores: {
+            accuracy?: number;
+            fillerScore?: number;
+            behavioralScore?: number;
+            technicalScore?: number;
+            confidenceLevel?: number;
+        } | null,
+        onboardingData: {
+            targetCompany: string;
+            targetRole: string;
+            daysLeft: number;
+            skillsHave: string[];
+            skillsNeeded?: string[];
+            careerGap?: string;
+        }
+    ) {
+
+        const isNewUser =
+            !interviewScores ||
+            Object.values(interviewScores).every(v => v === undefined);
+
+        const prompt = `
+        You are a professional career coach and interview preparation strategist.
+
+        CANDIDATE PROFILE:
+        - Target Company: ${onboardingData.targetCompany}
+        - Target Role: ${onboardingData.targetRole}
+        - Current Skills: ${onboardingData.skillsHave.join(", ")}
+        - Skills Needed: ${onboardingData.skillsNeeded?.join(", ") || "Not specified"}
+        - Days Until Interview: ${onboardingData.daysLeft}
+        - Career Gap/Weakness: ${onboardingData.careerGap || "None specified"}
+
+        USER STATUS:
+        ${isNewUser
+                        ? "This candidate has NOT participated in any mock interview yet."
+                        : "This candidate has completed mock interviews and performance metrics are available."
+                    }
+
+        INTERVIEW PERFORMANCE METRICS:
+        - Technical Score: ${interviewScores?.technicalScore ?? "Not available"}/100
+        - Behavioral Score: ${interviewScores?.behavioralScore ?? "Not available"}/100
+        - Answer Accuracy: ${interviewScores?.accuracy ?? "Not available"}/100
+        - Filler Words Score: ${interviewScores?.fillerScore ?? "Not available"}/100
+        - Confidence Level: ${interviewScores?.confidenceLevel ?? "Not available"}/100
+
+
+        ========================
+        YOUR TASK LOGIC
+        ========================
+
+        IF USER HAS NO MOCK DATA:
+
+        1. DO NOT assume weaknesses.
+        2. Create a FOUNDATION PREPARATION PLAN.
+        3. First phase MUST include:
+        - skill assessment
+        - resume storytelling practice
+        - baseline technical revision
+        - communication diagnostics
+        4. Introduce gradual mock interviews starting mid-schedule.
+        5. Generate 3–5 diagnostic technical questions instead of weakness-based questions.
+        6. Focus on confidence building and structured preparation.
+
+        IF MOCK DATA EXISTS:
+
+        ANALYZE WEAK AREAS:
+        - Technical Score < 65 OR accuracy < 60 → THEORETICALLY WEAK
+        - Behavioral Score < 60 → BEHAVIORALLY WEAK
+        - fillerScore > 60 → COMMUNICATION ISSUE
+
+        Create improvement-focused scheduling prioritizing weak areas.
+
+
+        ========================
+        SCHEDULE REQUIREMENTS
+        ========================
+
+        - Generate structured preparation for ${onboardingData.daysLeft} days
+        - Divide into logical phases
+        - Include theory, practice, behavioral prep, communication drills
+        - Introduce mock interviews progressively
+        - Add measurable milestones
+
+
+        ========================
+        OUTPUT REQUIREMENTS (CRITICAL)
+        ========================
+
+        Return ONLY valid JSON.
+        Do NOT include markdown or explanations.
+        Response must be strictly parseable.
+
+
+        JSON SCHEMA:
+
+        {
+        "analysis": {
+            "strengths": [string],
+            "weaknesses": [string],
+            "primaryFocus": "foundation" | "theoretical" | "behavioral" | "both" | "communication"
+        },
+        "taskSchedule": {
+            "totalDays": number,
+            "phases": [
+            {
+                "phase": string,
+                "days": [number, number],
+                "goals": [string],
+                "dailyTasks": [
+                {
+                    "day": number,
+                    "taskId": string,
+                    "tasks": [string],
+                    "hoursRequired": number,
+                    "completionScore": number,
+                    "difficulty": "easy" | "medium" | "hard",
+                    "category": "assessment" | "theory" | "practice" | "mock_interview" | "behavioral" | "communication"
+                }
+                ]
+            }
+            ]
+        },
+        "interventions": {
+            "type": "foundation" | "theoretical" | "behavioral" | "both",
+            "theoreticalQuestions": [
+            {
+                "questionId": number,
+                "question": string,
+                "topic": string,
+                "difficulty": "medium" | "hard",
+                "expectedKeyPoints": [string]
+            }
+            ],
+            "behavioralTopics": [],
+            "communicationImprovements": [string]
+        },
+        "weeklyMilestones": [
+            {
+            "week": number,
+            "milestone": string,
+            "successCriteria": string
+            }
+        ],
+        "mockInterviewDates": [
+            {
+            "mockNumber": number,
+            "day": number,
+            "focus": string
+            }
+        ],
+        "totalPossibleScore": number
+        }
+
+        TASK SCORING GUIDELINES:
+        - Assessment tasks: 15–25 points
+        - Theory tasks: 20–40 points
+        - Practice tasks: 30–50 points
+        - Mock interviews: 50–100 points
+        - Behavioral practice: 20–40 points
+        - Communication drills: 15–30 points
+        - totalPossibleScore = sum of all completionScores
+
+        Generate the JSON response now.
+    `;
+
+        return prompt;
+    }
+} 

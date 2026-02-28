@@ -76,40 +76,62 @@ export class ReportService {
             const report = await this.reportModel.findById(reportId)
             if (!report) return null
 
-            // Check if report has already been analyzed
+            // Idempotent: skip if already analyzed
             if (report.answersMetrics && report.answersMetrics.length > 0) {
                 console.log(`Report ${reportId} has already been analyzed, skipping...`)
                 return report.id
             }
 
-            const answerMetrics = await this.analyseQnA(report.questions, report.answers)
-            const videoMetrics = await this.analyseRcrd(report.recordURL ?? null)
+            // Analyze QnA via AI
+            const answerMetrics: any[] = await this.analyseQnA(report.questions, report.answers) || []
+
+            // Compute averages from answer metrics
+            const avgAccuracy = answerMetrics.length > 0
+                ? Math.round(answerMetrics.reduce((s, m) => s + (m.accuracy || 0), 0) / answerMetrics.length)
+                : 0
+            const avgFiller = answerMetrics.length > 0
+                ? Math.round(answerMetrics.reduce((s, m) => s + (m.fillerScore || 0), 0) / answerMetrics.length)
+                : 0
+
+            // Video metrics (use raw metrics if provided for simulation)
+            const videoMetrics = report.rawVideoMetrics || await this.analyseRcrd(report.recordURL ?? null)
             let personalityScore = 50, confusionLevel = 50, fluencyScore = 50
             if (videoMetrics) {
-                personalityScore = (videoMetrics.blankvisual * (-0.4)
-                    + videoMetrics.eyecontact * (0.6)
-                    + videoMetrics.facevisible * (0.2)
-                    + videoMetrics.softsmile * (0.8)
-                ) % 100
+                personalityScore = Math.round(
+                    (videoMetrics.blankvisual * -0.4)
+                    + (videoMetrics.eyecontact * 0.6)
+                    + (videoMetrics.facevisible * 0.2)
+                    + (videoMetrics.softsmile * 0.8)
+                )
 
-                confusionLevel = (videoMetrics.blankvisual * (0.5)
-                    + videoMetrics.eyecontact * (-0.6)
-                    + videoMetrics.facevisible * (-0.2)
-                    + videoMetrics.softsmile * (-0.8)
-                ) % 100
+                confusionLevel = Math.round(
+                    (videoMetrics.blankvisual * 0.5)
+                    + (videoMetrics.eyecontact * -0.6)
+                    + (videoMetrics.facevisible * -0.2)
+                    + (videoMetrics.softsmile * -0.8)
+                )
 
-                fluencyScore = (videoMetrics.blankvisual * (-0.4)
-                    + videoMetrics.eyecontact * (0.6)
-                    + videoMetrics.facevisible * (0.2)
-                    + videoMetrics.softsmile * (0.8)
-                ) % 100
+                fluencyScore = Math.round(
+                    (videoMetrics.blankvisual * -0.4)
+                    + (videoMetrics.eyecontact * 0.6)
+                    + (videoMetrics.facevisible * 0.2)
+                    + (videoMetrics.softsmile * 0.8)
+                )
             }
 
+            // Derive a consolidated hit/technical score for the report
+            const hitScore = Math.round((avgAccuracy * 0.6) + (fluencyScore * 0.2) + (personalityScore * 0.2))
 
-            // AI to evaluate 
-            const hitScore = 78
-            const sugg = "Never give up!"
+            const improvementSuggestion = hitScore < 60 ? 'Focus on core concepts and timed practice.' : 'Keep practicing with mocks and real projects.'
 
+            // Interview-level scores to feed schedule generator
+            const interviewScores = {
+                accuracy: avgAccuracy,
+                fillerScore: avgFiller,
+                behavioralScore: personalityScore,
+                technicalScore: hitScore,
+                confidenceLevel: Math.max(0, 100 - Math.abs(confusionLevel))
+            }
 
             const evaluatedMetrices = {
                 videoMetrics: videoMetrics,
@@ -118,10 +140,23 @@ export class ReportService {
                 confusionLevel: confusionLevel,
                 fluencyScore: fluencyScore,
                 hitScore: hitScore,
-                improvementSugg: sugg
+                improvementSugg: improvementSuggestion,
+                interviewScores: interviewScores
             }
 
             await report.updateOne(evaluatedMetrices)
+
+            // Persist interview scores to user profile for quick access on dashboard
+            await this.userService.updateInterviewScores(report.interviewer, interviewScores)
+
+            // automatically regenerate schedule based on latest performance and onboarding
+            try {
+                await this.generatePersonalizedScheduleForReport(reportId, report.interviewer)
+            } catch (_) {
+                // non-fatal, just log
+                console.log('Schedule regeneration failed after analysis')
+            }
+
             const emailPayload = {
                 title: report.metadata.title,
                 targetCmp: report.metadata.targetCmp,
@@ -132,8 +167,8 @@ export class ReportService {
             const user = await this.userService.findUserById(report.interviewer)
 
             await this.emailService.sendEmail(
-                user?.email || "samajdarsoumyajeet0@gmail.com", 
-                "Report Updation Notification", 
+                user?.email || "samajdarsoumyajeet0@gmail.com",
+                "Report Updation Notification",
                 "report-notification-mail",
                 emailPayload
             )
@@ -142,6 +177,99 @@ export class ReportService {
         } catch (error) {
             console.log(error)
             return null
+        }
+    }
+
+
+    async giveReports(userId: any) {
+        try {
+            const reports = await this.reportModel.find({ interviewer: userId })
+            return reports
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    async generatePersonalizedScheduleForReport(reportId: any, userId: any) {
+        try {
+            const report = await this.reportModel.findById(reportId)
+            if (!report) return { flag: "fail", data: "Report not found" }
+
+            // Extract interview scores from report metrics
+            const interviewScores = {
+                accuracy: report.answersMetrics?.[0]?.accuracy || 0,
+                fillerScore: report.answersMetrics?.[0]?.fillerScore || 0,
+                behavioralScore: report.personalityScore || 0,
+                technicalScore: (report.hitScore || 0),
+                confidenceLevel: 100 - (report.confusionLevel || 0)
+            };
+
+            // Get user onboarding data
+            const user = await this.userService.findUserById(userId)
+            const onboardingData = {
+                targetCompany: user?.targetCompany || report.metadata?.targetCmp || "Not specified",
+                targetRole: user?.targetRole || report.metadata?.title || "Not specified",
+                daysLeft: user?.daysLeft || 30,
+                skillsHave: user?.skillsHave || [],
+                skillsNeeded: user?.skillsNeeded || [],
+                careerGap: user?.careerGap || ""
+            };
+
+            // Generate personalized schedule using AI service
+            const schedule = await this.aiService.generatePersonalizedSchedule(interviewScores, onboardingData)
+            
+            if (schedule) {
+                // Save schedule to report
+                await this.reportModel.findByIdAndUpdate(
+                    reportId,
+                    {
+                        personalizedSchedule: schedule,
+                        scheduleGenerated: true
+                    },
+                    { new: true }
+                )
+
+                // Also save to user profile and initialize schedule scores
+                await this.userService.savePersonalizedSchedule(userId, schedule)
+                const totalScore = schedule.totalPossibleScore || 0
+                await this.userService.initializeScheduleScores(userId, totalScore)
+
+                return { flag: "success", data: schedule }
+            }
+
+            return { flag: "fail", data: "Failed to generate schedule" }
+        } catch (error) {
+            console.log(error)
+            return { flag: "fail", data: error.message }
+        }
+    }
+
+    async getPersonalizedSchedule(reportId: any) {
+        try {
+            const report = await this.reportModel.findById(reportId)
+            if (!report) return { flag: "fail", data: "Report not found" }
+
+            if (!report.scheduleGenerated || !report.personalizedSchedule) {
+                return { flag: "fail", data: "Schedule not yet generated" }
+            }
+
+            return { flag: "success", data: report.personalizedSchedule }
+        } catch (error) {
+            console.log(error)
+            return { flag: "fail", data: error.message }
+        }
+    }
+
+    async getUserPersonalizedSchedule(userId: any) {
+        try {
+            const schedule = await this.userService.getPersonalizedSchedule(userId)
+            if (!schedule) {
+                return { flag: "fail", data: "No personalized schedule found" }
+            }
+            return { flag: "success", data: schedule }
+        } catch (error) {
+            console.log(error)
+            return { flag: "fail", data: error.message }
         }
     }
 }
