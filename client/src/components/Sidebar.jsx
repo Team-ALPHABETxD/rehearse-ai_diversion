@@ -72,16 +72,18 @@ export default function Sidebar({ currentPath, onNavigate }) {
                       : "text-white/70 hover:text-white hover:bg-white/5"
                   )}
                 >
-                  <div className={cn(
-                    "absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20",
-                    "opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  )} />
-                  <Icon 
-                    size={20} 
+                  <div
+                    className={cn(
+                      "absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20",
+                      "opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    )}
+                  />
+                  <Icon
+                    size={20}
                     className={cn(
                       "relative z-10 transition-transform duration-200",
                       isActive && "scale-110"
-                    )} 
+                    )}
                   />
                   <span className="relative z-10 font-medium">{item.label}</span>
                   {isActive && (
@@ -91,14 +93,6 @@ export default function Sidebar({ currentPath, onNavigate }) {
               )
             })}
           </nav>
-
-          {/* Footer */}
-          <div className="mt-auto pt-6 border-t border-white/10">
-            <div className="glass rounded-lg p-4">
-              <p className="text-xs text-white/60">Powered by AI</p>
-              <p className="text-xs text-white/40 mt-1">v1.0.0</p>
-            </div>
-          </div>
         </div>
       </aside>
 
