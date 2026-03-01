@@ -1,4 +1,5 @@
 import { motion } from "framer-motion"
+import { useNavigate } from "react-router-dom"
 import { FileText, Video, Eye, Mic, Brain, TrendingUp } from "lucide-react"
 import { Button } from "../components/ui/button"
 
@@ -12,6 +13,7 @@ const stats = [
 ]
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   return (
     <div className="min-h-screen p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
@@ -56,20 +58,20 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="glass-strong rounded-2xl p-8"
+          className="glass-strong rounded-2xl p-6"
         >
-          <h2 className="text-2xl font-bold text-white mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Button variant="default" className="h-auto py-6 flex-col gap-2">
-              <FileText size={32} />
+          <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <Button variant="default" size="sm" className="h-auto py-2.5 flex items-center justify-center gap-2" onClick={() => navigate("/resume")}>
+              <FileText size={18} />
               <span>Check Resume</span>
             </Button>
-            <Button variant="default" className="h-auto py-6 flex-col gap-2">
-              <Video size={32} />
+            <Button variant="default" size="sm" className="h-auto py-2.5 flex items-center justify-center gap-2" onClick={() => navigate("/interview")}>
+              <Video size={18} />
               <span>Start Interview</span>
             </Button>
-            <Button variant="default" className="h-auto py-6 flex-col gap-2">
-              <Brain size={32} />
+            <Button variant="default" size="sm" className="h-auto py-2.5 flex items-center justify-center gap-2" onClick={() => navigate("/aptitude")}>
+              <Brain size={18} />
               <span>Take Aptitude Test</span>
             </Button>
           </div>
