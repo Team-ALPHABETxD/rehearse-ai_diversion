@@ -89,7 +89,8 @@ export class AiService {
             const prompt = this.aiPrompts.getVdoPrompt()
             return await this.innerServices.analyseVideo(prompt, path)
         } catch (error) {
-
+            console.log(error)
+            return null
         }
     }
 

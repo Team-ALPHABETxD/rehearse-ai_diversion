@@ -26,6 +26,6 @@ export class UploadController {
     uploadFile(@UploadedFile() file: Express.Multer.File) {
         console.log(file)
         console.log(file.path)
-        return { flag: "success", data: `http://localhost:${process.env.PORT || 3000}/${file.path}` }
+        return { flag: "success", data: file.path }
     }
 }
