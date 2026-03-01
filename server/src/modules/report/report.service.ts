@@ -62,7 +62,7 @@ export class ReportService {
     async analyseRcrd(rcrdUrl: string) {
         if (!rcrdUrl) return null
 
-        const aiAnalysed = await this.aiService
+        const aiAnalysed = await this.aiService.analyseVdo(rcrdUrl)
         const analysedData = {
             facevisible: 41,
             eyecontact: 24,
