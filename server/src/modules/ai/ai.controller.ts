@@ -4,9 +4,9 @@ import { AiService } from './ai.service';
 
 @Controller('ai')
 export class AiController {
-    constructor (
+    constructor(
         @Inject() private readonly aiService: AiService
-    ) {}
+    ) { }
 
 
     @Post('/cheatsheet')
@@ -21,7 +21,7 @@ export class AiController {
         },
     })
     @ApiOperation({ description: "Cheatsheet Generation" })
-    async generateChSheet (@Body() data: any) {
+    async generateChSheet(@Body() data: any) {
         const res = await this.aiService.createCS(data.topic)
         console.log(res)
         return { flag: "succes", data: res }
@@ -48,8 +48,8 @@ export class AiController {
         },
     })
     @ApiOperation({ description: "Interview questions Generation" })
-    async generateQuess (@Body() data: any) {
-        const { jobTitle, exp, skills, projects } =  data
+    async generateQuess(@Body() data: any) {
+        const { jobTitle, exp, skills, projects } = data
         const res = await this.aiService.createQS(jobTitle, exp, skills, projects)
         console.log(res)
         return { flag: "succes", data: res }
@@ -68,7 +68,7 @@ export class AiController {
         },
     })
     @ApiOperation({ description: "Interview questions Generation" })
-    async analyseResume (@Body() data: any) {
+    async analyseResume(@Body() data: any) {
         const res = await this.aiService.resumeService(data.path)
         console.log(res)
         return { flag: "succes", data: res }
@@ -104,10 +104,34 @@ export class AiController {
         },
     })
     @ApiOperation({ description: "Generate personalized interview prep schedule with tasks and interventions" })
-    async generateSchedule (@Body() data: any) {
+    async generateSchedule(@Body() data: any) {
         const { interviewScores, onboardingData } = data
         const res = await this.aiService.generatePersonalizedSchedule(interviewScores, onboardingData)
         console.log(res)
         return { flag: "success", data: res }
-    } 
+    }
+
+
+    @Post('transcribe')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                path: {
+                    type: 'string'
+                }
+            },
+        },
+    })
+    @ApiOperation({ description: "Audio to text conversion" })
+    async convertToText(@Body() path: any) {
+        try {
+            const text = await this.aiService.transcript(path)
+            console.log(text)
+            return { flag: "success", data: text }
+        } catch (error) {
+            console.log(error)
+            return { flag: "success", data: "" }
+        }
+    }
 }

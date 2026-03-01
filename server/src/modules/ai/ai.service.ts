@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AiPrompots } from './ai.prompts';
 import { InnerAiService } from './ai.inner.service';
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
 @Injectable()
 export class AiService {
@@ -83,12 +84,39 @@ export class AiService {
     }
 
 
-    async analyseVdo (path: string) {
+    async analyseVdo(path: string) {
         try {
             const prompt = this.aiPrompts.getVdoPrompt()
             return await this.innerServices.analyseVideo(prompt, path)
         } catch (error) {
-            
+
+        }
+    }
+
+
+    config = {
+        api: {
+            bodyParser: false,
+        },
+    };
+
+    async transcript(audioBlob: any) {
+        try {
+            const elevenlabs = new ElevenLabsClient({
+                apiKey: process.env.ELEVENLABS_API_KEY
+            });
+
+            const result = await elevenlabs.speechToText.convert({
+                file: audioBlob,
+                modelId: "scribe_v1",
+                languageCode: "eng"
+            });
+            console.log(result)
+
+            return result.text;
+        } catch (error) {
+            console.log(error)
+            return null
         }
     }
 
